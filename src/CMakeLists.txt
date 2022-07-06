@@ -2,28 +2,23 @@
 find_package(Corrosion REQUIRED)
 find_program(CBINDGEN cbindgen REQUIRED)
 
-corrosion_import_crate(MANIFEST_PATH codec/Cargo.toml)
+corrosion_import_crate(MANIFEST_PATH manpack/Cargo.toml)
 
 add_custom_command(
-    OUTPUT codec.h
+    OUTPUT manpack_c.hpp
     COMMAND ${CBINDGEN}
     ARGS --config cbindgen.toml
-         --output ${CMAKE_CURRENT_BINARY_DIR}/codec.h
+         --crate manpack
+         --output ${CMAKE_CURRENT_BINARY_DIR}/manpack_c.hpp
     DEPENDS
-        codec/codec.rs
+        manpack/src/codec.rs
 
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/codec
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/manpack
 )
 
-add_library(codec SHARED
-    ${CMAKE_CURRENT_BINARY_DIR}/codec.h
-)
+set_source_files_properties(${CMAKE_CURRENT_BINARY_DIR}/manpack_c.hpp PROPERTIES GENERATED TRUE)
 
-target_include_directories(codec
-    PRIVATE
-        ${CMAKE_CURRENT_BINARY_DIR}
-)
-
-target_link_libraries(codec
-    PRIVATE
+add_executable(test
+    test.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/manpack_c.hpp
 )
