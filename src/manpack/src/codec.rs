@@ -1,6 +1,6 @@
 
-#[no_mangle]
-pub extern "C" fn compress(count: u64, data: &mut [u32]) -> Vec<u32>
+
+pub fn compress(_pixels: &Vec<u32>) -> u32
 {
-    return data.to_vec();
+    return 0;
 }
