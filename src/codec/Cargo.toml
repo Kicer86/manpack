@@ -1,0 +1,9 @@
+
+[package]
+name = "manpack"
+version = "1.0.0"
+
+[dependencies]
+
+[lib]
+crate-type=["staticlib"]
