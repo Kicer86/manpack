@@ -4,6 +4,8 @@ name = "manpack"
 version = "1.0.0"
 
 [dependencies]
+huffman-compress = "0.6.1"
+bit-vec = "0.6.3"
 
 [lib]
 crate-type=["staticlib"]

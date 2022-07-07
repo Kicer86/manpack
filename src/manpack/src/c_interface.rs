@@ -5,7 +5,7 @@ use crate::codec::compress;
 
 
 #[no_mangle]
-pub extern fn compressImage(pixels: *const u32, count: usize) -> u32
+pub extern fn compressImage(pixels: *const u32, count: usize) -> usize
 {
     let vec: Vec<u32>;
 
