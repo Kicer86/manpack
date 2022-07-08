@@ -4,8 +4,10 @@ use std::iter::FromIterator;
 use bit_vec::BitVec;
 use huffman_compress::{CodeBuilder};
 
+use crate::common::CompressedPixels;
 
-pub fn compress(pixels: &[u32]) -> usize
+
+pub fn compress(pixels: &[u32]) -> CompressedPixels
 {
     let mut unique_pixels = HashMap::new();
 
@@ -21,5 +23,8 @@ pub fn compress(pixels: &[u32]) -> usize
         book.encode(&mut buffer, pixel);
     }
 
-    return buffer.len();
+    CompressedPixels {
+        bytes: buffer.to_bytes(),
+        size: buffer.len(),
+    }
 }
