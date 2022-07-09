@@ -1,33 +1,30 @@
 
-
 # create rust crate and cpp interface file
 
 find_package(Corrosion REQUIRED)
 find_program(CXXBRIDGE cxxbridge REQUIRED)
 
-corrosion_import_crate(MANIFEST_PATH manpack/Cargo.toml)
+corrosion_import_crate(MANIFEST_PATH manpack-cpp-interface/Cargo.toml)
 
 add_custom_command(
     OUTPUT manpack_cpp.hpp
     COMMAND ${CXXBRIDGE}
-    ARGS ${CMAKE_CURRENT_SOURCE_DIR}/manpack/src/cpp_interface.rs
+    ARGS ${CMAKE_CURRENT_SOURCE_DIR}/manpack-cpp-interface/src/cpp_interface.rs
          --header > ${CMAKE_CURRENT_BINARY_DIR}/manpack_cpp.hpp
     DEPENDS
-        manpack/src/cpp_interface.rs
-
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/manpack
+        manpack-cpp-interface/src/cpp_interface.rs
 )
 
 add_custom_command(
     OUTPUT manpack_cpp.cpp
     COMMAND ${CXXBRIDGE}
-    ARGS ${CMAKE_CURRENT_SOURCE_DIR}/manpack/src/cpp_interface.rs
+    ARGS ${CMAKE_CURRENT_SOURCE_DIR}/manpack-cpp-interface/src/cpp_interface.rs
          > ${CMAKE_CURRENT_BINARY_DIR}/manpack_cpp.cpp
     DEPENDS
-        manpack/src/cpp_interface.rs
+        manpack-cpp-interface/src/cpp_interface.rs
 )
 
-target_include_directories(manpack
+target_include_directories(manpack-cpp-interface
     INTERFACE
         ${CMAKE_CURRENT_BINARY_DIR}
 )
@@ -45,5 +42,5 @@ add_executable(test
 
 target_link_libraries(test
     PRIVATE
-        manpack
+        manpack-cpp-interface
 )

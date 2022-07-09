@@ -1,5 +1,7 @@
 
-use crate::codec::compress;
+use cxx;
+
+use manpack::codec::compress;
 
 
 #[cxx::bridge]

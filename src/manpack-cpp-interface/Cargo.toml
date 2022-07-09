@@ -1,0 +1,13 @@
+
+[package]
+name = "manpack-cpp-interface"
+version = "1.0.0"
+edition = "2021"
+
+[dependencies]
+cxx = "1.0"
+
+manpack={ path = "../manpack" }
+
+[lib]
+crate-type=["staticlib"]

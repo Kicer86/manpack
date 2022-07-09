@@ -2,11 +2,8 @@
 [package]
 name = "manpack"
 version = "1.0.0"
+edition = "2021"
 
 [dependencies]
 huffman-compress = "0.6.1"
 bit-vec = "0.6.3"
-cxx = "1.0"
-
-[lib]
-crate-type=["staticlib"]
