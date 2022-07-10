@@ -20,7 +20,7 @@ pub fn compress(pixels: &[u32]) -> CompressedPixels
 
     let mut buffer = BitVec::new();
     for pixel in pixels {
-        book.encode(&mut buffer, pixel);
+        let _status = book.encode(&mut buffer, pixel);
     }
 
     CompressedPixels {
