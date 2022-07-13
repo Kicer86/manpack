@@ -1,29 +1,20 @@
 
 use cxx;
 
-use manpack::codec::compress;
+use manpack::codec::compress_image as compress_image_r;
 
 
 #[cxx::bridge]
 mod ffi {
-    struct CompressedPixels {
-        bytes: Vec<u8>,
-        size: usize,
-    }
 
     #[namespace = "rust_part"]
     extern "Rust" {
         // Functions implemented in Rust.
-        fn compress_image(buf: &[u32]) -> CompressedPixels;
+        fn compress_image(buf: &[u32]) -> Vec<u8>;
     }
 }
 
 
-fn compress_image(buf: &[u32]) -> ffi::CompressedPixels {
-    let compressed = compress(buf);
-
-    ffi::CompressedPixels {
-        bytes: compressed.bytes,
-        size: compressed.size,
-    }
+fn compress_image(buf: &[u32]) -> Vec<u8> {
+    compress_image_r(buf)
 }
