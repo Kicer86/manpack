@@ -11,6 +11,7 @@ where
 {
     let words = calculate_weights(data);
     let dictionary = build_dictionary(&words);
+    let compressed_data = compress_data(&dictionary, data);
 
     Vec::new()
 }
@@ -113,6 +114,23 @@ where
     }
 }
 
+
+fn compress_data<T>(dict: &Dictionary<T>, data: &[T]) -> BitVec
+    where
+        T: Eq + Hash
+{
+    let mut output = BitVec::new();
+
+    for v in data {
+        let code = dict.get(v).unwrap();
+
+        for b in code {
+            output.push(b);
+        }
+    }
+
+    return output;
+}
 
 #[cfg(test)]
 mod tests {
