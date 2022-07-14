@@ -3,21 +3,14 @@ use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::hash::Hash;
 use bit_vec::BitVec;
-use core::fmt::Display;
-use itertools::Itertools;
 
 
 pub fn compress<T>(data: &[T]) -> Vec<u8>
 where
-    T: Eq + Hash + Copy + Display
+    T: Eq + Hash + Copy
 {
-
     let words = calculate_weights(data);
     let dictionary = build_dictionary(&words);
-
-    for (key, value) in &dictionary {
-        println!("{}: {}", key, value.iter().format(""));
-    }
 
     Vec::new()
 }
@@ -56,6 +49,11 @@ fn build_dictionary<T>(words: &HashMap<T, usize>) -> Dictionary<T>
 where
     T: Eq + Hash + Copy
 {
+
+    if words.is_empty() {
+        return Dictionary::<T>::new();
+    }
+
     let mut trees: VecDeque::<Tree<T> > = VecDeque::with_capacity(words.len());
 
     // load all words as trees
@@ -112,5 +110,49 @@ where
             parse_node(&left, dict, lc);
             parse_node(&right, dict, rc);
         }
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    #[test]
+    fn test_build_dictionary() {
+
+        let words: HashMap<u8, usize> =
+            [
+             (0, 30),
+             (1, 100),
+             (2, 20),
+             (3, 10),
+             (4, 70),
+             (5, 90),
+             (6, 60),
+             (7, 80),
+             (8, 50),
+             (9, 40),
+            ].iter().cloned().collect();
+
+        let dictionary = build_dictionary(&words);
+        let expected_order = vec![1, 5, 7, 4, 6, 8, 9, 0, 2, 3];
+
+        for i in 0..9 {
+            let l = expected_order[i];
+            let r = expected_order[i + 1];
+
+            assert!(dictionary.get(&l).unwrap().len() <= dictionary.get(&r).unwrap().len());
+        }
+    }
+
+    #[test]
+    fn test_build_empty_dictionary() {
+
+        let words: HashMap<u8, usize> = HashMap::new();
+        let dictionary = build_dictionary(&words);
+
+        assert_eq!(dictionary.len(), 0);
     }
 }
