@@ -2,6 +2,7 @@
 # create rust crate and cpp interface file
 
 find_package(Corrosion REQUIRED)
+find_package(Qt6 REQUIRED COMPONENTS Gui)
 find_program(CXXBRIDGE cxxbridge REQUIRED)
 
 corrosion_import_crate(MANIFEST_PATH manpack-cpp-interface/Cargo.toml)
@@ -43,4 +44,5 @@ add_executable(test
 target_link_libraries(test
     PRIVATE
         manpack-cpp-interface
+        Qt6::Gui
 )
