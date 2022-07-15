@@ -1,19 +1,67 @@
 
+use bit_vec::BitVec;
 use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::hash::Hash;
-use bit_vec::BitVec;
+use std::mem::size_of;
+
+
+pub trait Serialize {
+    fn to_bytes(self) -> BitVec;
+    //fn from_bytes(bytes: BitVec) -> Self;
+}
+
+impl Serialize for usize {
+    fn to_bytes(self) -> BitVec {
+        let bytes = self.to_le_bytes();
+        return BitVec::from_bytes(&bytes);
+    }
+}
+
+impl Serialize for u32 {
+    fn to_bytes(self) -> BitVec {
+        let bytes = self.to_le_bytes();
+        return BitVec::from_bytes(&bytes);
+    }
+
+    /*
+    fn from_bytes(bytes: BitVec) -> u32  {
+        u32::from_le_bytes(bytes)
+    }
+    */
+}
+
+impl Serialize for u16 {
+    fn to_bytes(self) -> BitVec {
+        let bytes = self.to_le_bytes();
+        return BitVec::from_bytes(&bytes);
+    }
+}
+
+impl Serialize for u8 {
+    fn to_bytes(self) -> BitVec {
+        let bytes = self.to_le_bytes();
+        return BitVec::from_bytes(&bytes);
+    }
+}
 
 
 pub fn compress<T>(data: &[T]) -> Vec<u8>
 where
-    T: Eq + Hash + Copy
+    T: Eq + Hash + Copy + Serialize
 {
     let words = calculate_weights(data);
     let dictionary = build_dictionary(&words);
-    let compressed_data = compress_data(&dictionary, data);
+    let mut compressed_dict = compress_dictionary(&dictionary);
+    let mut compressed_data = compress_data(&dictionary, data);
 
-    Vec::new()
+    let mut compressed = BitVec::new();
+    compressed.append(&mut compressed_dict.len().to_bytes());
+    compressed.append(&mut compressed_dict);
+    compressed.append(&mut compressed_data.len().to_bytes());
+    compressed.append(&mut compressed_data);
+
+    return compressed.to_bytes();
 }
 
 
@@ -114,7 +162,6 @@ where
     }
 }
 
-
 fn compress_data<T>(dict: &Dictionary<T>, data: &[T]) -> BitVec
     where
         T: Eq + Hash
@@ -122,14 +169,43 @@ fn compress_data<T>(dict: &Dictionary<T>, data: &[T]) -> BitVec
     let mut output = BitVec::new();
 
     for v in data {
-        let code = dict.get(v).unwrap();
+        let mut code = dict.get(v).unwrap().clone();
 
-        for b in code {
-            output.push(b);
-        }
+        output.append(&mut code);
     }
 
     return output;
+}
+
+
+fn compress_dictionary<T>(dict: &Dictionary<T>) -> BitVec
+where
+    T: Copy + Serialize
+{
+
+    let mut compressed_dict = BitVec::new();
+    let words_count: u16 = dict.len() as u16;
+
+    // save count of words as 16 bits
+    compressed_dict.append(&mut words_count.to_bytes());
+
+    // save word size as 8 bits
+    let word_size: u8 = size_of::<T>() as u8;
+    compressed_dict.append(&mut word_size.to_bytes());
+
+    // save words
+    for (word, _) in dict {
+        compressed_dict.append(&mut word.to_bytes());
+    }
+
+    //save codes
+    for (_, code) in dict {
+        let code_len: u8 = code.len() as u8;
+        compressed_dict.append(&mut code_len.to_bytes());
+        compressed_dict.append(&mut code.clone());
+    }
+
+    return compressed_dict;
 }
 
 #[cfg(test)]
