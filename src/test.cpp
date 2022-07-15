@@ -26,6 +26,14 @@ int main()
     QFile mpImage("test.mp");
     mpImage.open(QIODevice::WriteOnly);
     mpImage.write((const char *)compressed.data(), compressed.size());
+    mpImage.close();
+
+    mpImage.open(QIODevice::ReadOnly);
+    const QByteArray mpImageRaw = mpImage.readAll();
+    mpImage.close();
+
+
+    auto decompressed = rust_part::decompress_image(rust::Slice((const unsigned char*)mpImageRaw.data(), mpImageRaw.size()));
 
     return 0;
 }
