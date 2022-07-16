@@ -8,13 +8,17 @@ use std::mem::size_of;
 
 pub trait Serialize {
     fn to_bytes(self) -> BitVec;
-    //fn from_bytes(bytes: BitVec) -> Self;
+    fn from_bytes(bytes: &BitVec) -> Self;
 }
 
 impl Serialize for usize {
     fn to_bytes(self) -> BitVec {
         let bytes = self.to_le_bytes();
         return BitVec::from_bytes(&bytes);
+    }
+
+    fn from_bytes(bits: &BitVec) -> Self {
+        Self::from_le_bytes(bits.to_bytes().try_into().expect("slice with incorrect length"))
     }
 }
 
@@ -24,11 +28,9 @@ impl Serialize for u32 {
         return BitVec::from_bytes(&bytes);
     }
 
-    /*
-    fn from_bytes(bytes: BitVec) -> u32  {
-        u32::from_le_bytes(bytes)
+    fn from_bytes(bits: &BitVec) -> Self {
+        Self::from_le_bytes(bits.to_bytes().try_into().expect("slice with incorrect length"))
     }
-    */
 }
 
 impl Serialize for u16 {
@@ -36,12 +38,20 @@ impl Serialize for u16 {
         let bytes = self.to_le_bytes();
         return BitVec::from_bytes(&bytes);
     }
+
+    fn from_bytes(bits: &BitVec) -> Self {
+        Self::from_le_bytes(bits.to_bytes().try_into().expect("slice with incorrect length"))
+    }
 }
 
 impl Serialize for u8 {
     fn to_bytes(self) -> BitVec {
         let bytes = self.to_le_bytes();
         return BitVec::from_bytes(&bytes);
+    }
+
+    fn from_bytes(bits: &BitVec) -> Self {
+        Self::from_le_bytes(bits.to_bytes().try_into().expect("slice with incorrect length"))
     }
 }
 
@@ -62,6 +72,40 @@ where
     compressed.append(&mut compressed_data);
 
     return compressed.to_bytes();
+}
+
+
+pub fn decompress<T>(data: &[u8]) -> Vec<T>
+where
+    T: Eq + Hash + Copy + Serialize
+{
+    let mut buf = BitVec::from_bytes(data);
+    let compressed_dict_size = extract_as::<usize>(&mut buf);
+    let mut compressed_dict = extract(&mut buf, compressed_dict_size);
+    let dictionary = decompress_dictionary::<T>(&mut compressed_dict);
+
+    return Vec::new();
+}
+
+
+fn extract(bit_vec: &mut BitVec, bits: usize) -> BitVec {
+    let mut remainder = bit_vec.split_off(bits);
+
+    // first part of original 'bit_vec' is what we return
+    // 'remainder' is what we left in 'bit_vec'
+    std::mem::swap(&mut remainder, bit_vec);
+
+    return remainder;
+}
+
+
+fn extract_as<T>(bit_vec: &mut BitVec) -> T
+where
+    T: Serialize
+{
+    let value_bits = extract(bit_vec, std::mem::size_of::<T>() * 8);
+
+    T::from_bytes(&value_bits)
 }
 
 
@@ -182,7 +226,6 @@ fn compress_dictionary<T>(dict: &Dictionary<T>) -> BitVec
 where
     T: Copy + Serialize
 {
-
     let mut compressed_dict = BitVec::new();
     let words_count: u16 = dict.len() as u16;
 
@@ -207,6 +250,39 @@ where
 
     return compressed_dict;
 }
+
+
+fn decompress_dictionary<T>(compressed_dict: &mut BitVec) -> Dictionary<T>
+where
+    T: Eq + Hash + Copy + Serialize
+{
+    let mut dictionary = Dictionary::new();
+
+    let words_count = extract_as::<u16>(compressed_dict);
+    let word_size = extract_as::<u8>(compressed_dict);
+    assert!(word_size as usize == std::mem::size_of::<T>());
+
+    let mut words = Vec::new();
+
+    // read words
+    for _ in 0..words_count {
+        let word = extract_as::<T>(compressed_dict);
+        words.push(word);
+    }
+
+    // read words' codes
+    for word in words {
+        let code_len = extract_as::<u8>(compressed_dict);
+        let code = extract(compressed_dict, code_len.into());
+        dictionary.insert(word, code.clone());
+    }
+
+    // all data should be consumed
+    assert!(compressed_dict.len() == 0);
+
+    return dictionary;
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -248,5 +324,23 @@ mod tests {
         let dictionary = build_dictionary(&words);
 
         assert_eq!(dictionary.len(), 0);
+    }
+
+    #[test]
+    fn test_dictionary_compression_decompression() {
+
+        let dictionary = Dictionary::from([
+            ( 1u32, BitVec::from_bytes(&[0b01011111, 0b10100000]) ),
+            ( 2u32, BitVec::from_fn(11, |i| { i % 2 == 0 }) ),
+            ( 3u32, BitVec::from_bytes(&[0b01011111, 0b10100000]) ),
+            ( 4u32, BitVec::from_fn(13, |i| { i % 3 == 0 }) ),
+            ( 5u32, BitVec::from_bytes(&[0b11001100, 0b11110000]) ),
+            ( 6u32, BitVec::from_fn(17, |i| { i % 5 == 0 }) ),
+        ]);
+
+        let mut compressed_dict = compress_dictionary(&dictionary);
+        let decompressed_dict = decompress_dictionary(&mut compressed_dict);
+
+        assert_eq!(dictionary, decompressed_dict);
     }
 }

@@ -32,7 +32,6 @@ int main()
     const QByteArray mpImageRaw = mpImage.readAll();
     mpImage.close();
 
-
     auto decompressed = rust_part::decompress_image(rust::Slice((const unsigned char*)mpImageRaw.data(), mpImageRaw.size()));
 
     return 0;
