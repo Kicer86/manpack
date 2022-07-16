@@ -29,8 +29,8 @@ mod tests {
 
     #[test]
     fn test_image_compression_decompression() {
-        let imageInt = vec![1, 2, 3, 4,  1, 2, 3, 4,  5, 6, 7, 8,  5, 6, 7, 8,  1, 3, 5, 7];
-        let image: Vec<u32> = imageInt.into();
+        let image_int = vec![1, 2, 3, 4,  1, 2, 3, 4,  5, 6, 7, 8,  5, 6, 7, 8,  1, 3, 5, 7];
+        let image: Vec<u32> = image_int.into();
 
         let compressed = compress_image(4, 5, &image);
         let decompressed = decompress_image(&compressed);
