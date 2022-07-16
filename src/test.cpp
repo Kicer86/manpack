@@ -21,7 +21,7 @@ int main()
     const qsizetype data_size = image.sizeInBytes() / 4;
 
     rust::Slice<const std::uint32_t> rustPixels(data, data_size);
-    auto compressed = rust_part::compress_image(rustPixels);
+    auto compressed = rust_part::compress_image(image.width(), image.height(), rustPixels);
 
     QFile mpImage("test.mp");
     mpImage.open(QIODevice::WriteOnly);
@@ -32,7 +32,7 @@ int main()
     const QByteArray mpImageRaw = mpImage.readAll();
     mpImage.close();
 
-    auto decompressed = rust_part::decompress_image(rust::Slice((const unsigned char*)mpImageRaw.data(), mpImageRaw.size()));
+    Image decompressed = rust_part::decompress_image(rust::Slice((const unsigned char*)mpImageRaw.data(), mpImageRaw.size()));
 
     return 0;
 }
