@@ -6,14 +6,6 @@
 
 int main()
 {
-    /*
-    const uintptr_t count = 12;
-    std::uint32_t pixels[count] = { 1, 2, 3,  1, 2, 3,  5, 6, 7,  1, 5, 7 };
-
-    rust::Slice<const std::uint32_t> rustPixels(pixels, count);
-    auto compressed = rust_part::compress_image(rustPixels);
-    */
-
     const QImage image("test.bmp");
 
     assert(image.format() == QImage::Format_RGB32 || image.format() == QImage::Format_ARGB32);
@@ -33,6 +25,9 @@ int main()
     mpImage.close();
 
     Image decompressed = rust_part::decompress_image(rust::Slice((const unsigned char*)mpImageRaw.data(), mpImageRaw.size()));
+
+    const QImage decompressedImage((const uchar*)decompressed.pixels.data(), decompressed.width, decompressed.height, QImage::Format_ARGB32);
+    decompressedImage.save("testd.bmp");
 
     return 0;
 }
