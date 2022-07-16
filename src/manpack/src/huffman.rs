@@ -1,8 +1,7 @@
 
 use bit_vec::BitVec;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::collections::VecDeque;
-use std::hash::Hash;
 use std::mem::size_of;
 
 
@@ -69,7 +68,7 @@ impl Serialize for u8 {
 
 pub fn compress<T>(data: &[T]) -> Vec<u8>
 where
-    T: Eq + Hash + Copy + Serialize
+    T: Ord + Copy + Serialize
 {
     let words = calculate_weights(data);
     let dictionary = build_dictionary(&words);
@@ -88,7 +87,7 @@ where
 
 pub fn decompress<T>(data: &[u8]) -> Vec<T>
 where
-    T: Eq + Hash + Copy + Serialize
+    T: Ord + Copy + Serialize
 {
     let mut buf = BitVec::from_bytes(data);
 
@@ -126,12 +125,12 @@ where
 }
 
 
-fn calculate_weights<T>(data: &[T]) -> HashMap<T, usize>
+fn calculate_weights<T>(data: &[T]) -> BTreeMap<T, usize>
 where
-    T: Eq + Hash + Copy
+    T: Ord + Copy
 {
 
-    let mut unique_words: HashMap<T, usize> = HashMap::new();
+    let mut unique_words: BTreeMap<T, usize> = BTreeMap::new();
 
     for word in data {
         let count = unique_words.entry(*word).or_insert(0);
@@ -142,7 +141,7 @@ where
 }
 
 
-type Dictionary<T> = HashMap<T, BitVec>;
+type Dictionary<T> = BTreeMap<T, BitVec>;
 
 struct Tree<T> {
     weight: usize,
@@ -155,9 +154,9 @@ enum Node<T> {
 }
 
 
-fn build_dictionary<T>(words: &HashMap<T, usize>) -> Dictionary<T>
+fn build_dictionary<T>(words: &BTreeMap<T, usize>) -> Dictionary<T>
 where
-    T: Eq + Hash + Copy
+    T: Ord + Copy
 {
 
     if words.is_empty() {
@@ -204,7 +203,7 @@ where
 
 fn parse_node<T>(node: &Node<T>, dict: &mut Dictionary<T>, code: BitVec)
 where
-    T: Eq + Hash + Copy
+    T: Ord + Copy
 {
     match node {
         Node::Leaf { value } => {
@@ -226,7 +225,7 @@ where
 
 fn compress_data<T>(dict: &Dictionary<T>, data: &[T]) -> BitVec
     where
-        T: Eq + Hash
+        T: Ord
 {
     let mut output = BitVec::new();
 
@@ -245,7 +244,7 @@ where
     T: Copy
 {
     // build AntiDictionary
-    let mut anti_dictionary = HashMap::new();
+    let mut anti_dictionary = BTreeMap::new();
 
     for (word, code) in dict {
         anti_dictionary.insert(code, word);
@@ -304,7 +303,7 @@ where
 
 fn decompress_dictionary<T>(compressed_dict: &mut BitVec) -> Dictionary<T>
 where
-    T: Eq + Hash + Copy + Serialize
+    T: Ord + Copy + Serialize
 {
     let mut dictionary = Dictionary::new();
 
@@ -342,7 +341,7 @@ mod tests {
     #[test]
     fn test_build_dictionary() {
 
-        let words: HashMap<u8, usize> =
+        let words: BTreeMap<u8, usize> =
             [
              (0, 30),
              (1, 100),
@@ -367,10 +366,36 @@ mod tests {
         }
     }
 
+     #[test]
+    fn test_dictionary_build_is_stable() {
+
+        let words: BTreeMap<u8, usize> =
+            [
+             (0, 30),
+             (1, 100),
+             (2, 20),
+             (3, 10),
+             (4, 10),
+             (5, 50),
+             (6, 25),
+             (7, 50),
+             (8, 25),
+             (9, 10),
+            ].iter().cloned().collect();
+
+        let dictionary = build_dictionary(&words);
+
+        for _ in 0..5 {
+            let dictionary2 = build_dictionary(&words);
+
+            assert_eq!(dictionary, dictionary2);
+        }
+    }
+
     #[test]
     fn test_build_empty_dictionary() {
 
-        let words: HashMap<u8, usize> = HashMap::new();
+        let words: BTreeMap<u8, usize> = BTreeMap::new();
         let dictionary = build_dictionary(&words);
 
         assert_eq!(dictionary.len(), 0);
