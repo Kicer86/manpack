@@ -80,9 +80,15 @@ where
     T: Eq + Hash + Copy + Serialize
 {
     let mut buf = BitVec::from_bytes(data);
+
     let compressed_dict_size = extract_as::<usize>(&mut buf);
     let mut compressed_dict = extract(&mut buf, compressed_dict_size);
     let dictionary = decompress_dictionary::<T>(&mut compressed_dict);
+
+    let compressed_data_size = extract_as::<usize>(&mut buf);
+    let mut compressed_data = extract(&mut buf, compressed_data_size);
+    assert!(buf.len() < 8);         // during compression bit stream was filled with zeroes up to multiple of 8. So there should be no more than 7 false bits left
+    let data = decompress_data::<T>(&dictionary, &mut compressed_data);
 
     return Vec::new();
 }
@@ -206,6 +212,7 @@ where
     }
 }
 
+
 fn compress_data<T>(dict: &Dictionary<T>, data: &[T]) -> BitVec
     where
         T: Eq + Hash
@@ -219,6 +226,12 @@ fn compress_data<T>(dict: &Dictionary<T>, data: &[T]) -> BitVec
     }
 
     return output;
+}
+
+
+fn decompress_data<T>(dict: &Dictionary<T>, buf: &mut BitVec) -> Vec<T> {
+
+    return Vec::new();
 }
 
 
