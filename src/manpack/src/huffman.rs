@@ -1,7 +1,10 @@
 
 use bit_vec::BitVec;
 use std::collections::BTreeMap;
+use std::collections::HashMap;
 use std::collections::VecDeque;
+use std::fmt::Debug;
+use std::hash::Hash;
 use std::mem::size_of;
 
 
@@ -68,7 +71,7 @@ impl Serialize for u8 {
 
 pub fn compress<T>(data: &[T]) -> Vec<u8>
 where
-    T: Ord + Copy + Serialize
+    T: Eq + Hash + Copy + Serialize + Debug
 {
     let words = calculate_weights(data);
     let dictionary = build_dictionary(&words);
@@ -87,7 +90,7 @@ where
 
 pub fn decompress<T>(data: &[u8]) -> Vec<T>
 where
-    T: Ord + Copy + Serialize
+    T: Eq + Hash + Copy + Serialize
 {
     let mut buf = BitVec::from_bytes(data);
 
@@ -125,23 +128,26 @@ where
 }
 
 
-fn calculate_weights<T>(data: &[T]) -> BTreeMap<T, usize>
+fn calculate_weights<T>(data: &[T]) -> HashMap<T, usize>
 where
-    T: Ord + Copy
+    T: Eq + Hash + Copy
 {
+    log::trace!("Calculating weights for {} pixels", data.len());
 
-    let mut unique_words: BTreeMap<T, usize> = BTreeMap::new();
+    let mut unique_words: HashMap<T, usize> = HashMap::new();
 
     for word in data {
         let count = unique_words.entry(*word).or_insert(0);
         *count += 1;
     }
 
+    log::trace!("Found {} unique pixels", unique_words.len());
+
     return unique_words;
 }
 
 
-type Dictionary<T> = BTreeMap<T, BitVec>;
+type Dictionary<T> = HashMap<T, BitVec>;
 
 struct Tree<T> {
     weight: usize,
@@ -154,10 +160,11 @@ enum Node<T> {
 }
 
 
-fn build_dictionary<T>(words: &BTreeMap<T, usize>) -> Dictionary<T>
+fn build_dictionary<T>(words: &HashMap<T, usize>) -> Dictionary<T>
 where
-    T: Ord + Copy
+    T: Eq + Hash + Copy
 {
+    log::trace!("Building dictionary for {} words", words.len());
 
     if words.is_empty() {
         return Dictionary::<T>::new();
@@ -175,6 +182,8 @@ where
         trees.push_back(node);
     }
 
+    log::trace!("Initial, flat, Huffman tree prepared");
+
     // build one tree from trees
     while trees.len() > 1
     {
@@ -191,11 +200,17 @@ where
         trees.push_back(tree);
     }
 
+    log::trace!("Huffman tree built");
+
     // build dictionary from tree
     let mut dictionary = Dictionary::new();
     let tree = trees.pop_front().unwrap();
 
     parse_node(&tree.data, &mut dictionary, BitVec::new());
+
+    log::trace!("Huffman tree converted into dictionary");
+    let longest_code = dictionary.iter().reduce(|acc, item| { if acc.1.len() > item.1.len() { acc } else { item } });
+    log::trace!("Longest code: {} bits", longest_code.expect("No entries in nonempty dictionary.").1.len());
 
     return dictionary;
 }
@@ -203,7 +218,7 @@ where
 
 fn parse_node<T>(node: &Node<T>, dict: &mut Dictionary<T>, code: BitVec)
 where
-    T: Ord + Copy
+    T: Eq + Hash + Copy
 {
     match node {
         Node::Leaf { value } => {
@@ -225,7 +240,7 @@ where
 
 fn compress_data<T>(dict: &Dictionary<T>, data: &[T]) -> BitVec
     where
-        T: Ord
+        T: Eq + Hash
 {
     let mut output = BitVec::new();
 
@@ -303,7 +318,7 @@ where
 
 fn decompress_dictionary<T>(compressed_dict: &mut BitVec) -> Dictionary<T>
 where
-    T: Ord + Copy + Serialize
+    T: Eq + Hash + Copy + Serialize
 {
     let mut dictionary = Dictionary::new();
 
@@ -341,7 +356,7 @@ mod tests {
     #[test]
     fn test_build_dictionary() {
 
-        let words: BTreeMap<u8, usize> =
+        let words: HashMap<u8, usize> =
             [
              (0, 30),
              (1, 100),
@@ -369,7 +384,7 @@ mod tests {
      #[test]
     fn test_dictionary_build_is_stable() {
 
-        let words: BTreeMap<u8, usize> =
+        let words: HashMap<u8, usize> =
             [
              (0, 30),
              (1, 100),
@@ -395,7 +410,7 @@ mod tests {
     #[test]
     fn test_build_empty_dictionary() {
 
-        let words: BTreeMap<u8, usize> = BTreeMap::new();
+        let words: HashMap<u8, usize> = HashMap::new();
         let dictionary = build_dictionary(&words);
 
         assert_eq!(dictionary.len(), 0);

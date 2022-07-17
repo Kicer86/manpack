@@ -6,7 +6,7 @@
 
 int main()
 {
-    const QImage image("test.bmp");
+    const QImage image("test.jpg");
 
     assert(image.format() == QImage::Format_RGB32 || image.format() == QImage::Format_ARGB32);
     const std::uint32_t* data = reinterpret_cast<const std::uint32_t*>(image.bits());
@@ -27,7 +27,7 @@ int main()
     Image decompressed = rust_part::decompress_image(rust::Slice((const unsigned char*)mpImageRaw.data(), mpImageRaw.size()));
 
     const QImage decompressedImage((const uchar*)decompressed.pixels.data(), decompressed.width, decompressed.height, QImage::Format_ARGB32);
-    decompressedImage.save("testd.bmp");
+    decompressedImage.save("testd.png");
 
     return 0;
 }

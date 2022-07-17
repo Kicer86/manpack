@@ -3,6 +3,8 @@ use crate::huffman::{compress, decompress};
 
 pub fn compress_image(width: u32, height: u32, pixels: &[u32]) -> Vec<u8>
 {
+    env_logger::init();
+
     let mut compressed_image: Vec<u8> = Vec::new();
     compressed_image.append(&mut width.to_le_bytes().to_vec());
     compressed_image.append(&mut height.to_le_bytes().to_vec());
