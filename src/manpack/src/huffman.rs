@@ -309,9 +309,9 @@ where
     T: Copy + Serialize
 {
     let mut compressed_dict = BitVec::new();
-    let words_count: u16 = dict.len() as u16;
+    let words_count: u32 = dict.len() as u32;
 
-    // save count of words as 16 bits
+    // save count of words as 32 bits
     compressed_dict.append(&mut words_count.to_bytes());
 
     // save word size as 8 bits
@@ -340,7 +340,7 @@ where
 {
     let mut dictionary = Dictionary::new();
 
-    let words_count = extract_as::<u16>(compressed_dict);
+    let words_count = extract_as::<u32>(compressed_dict);
     let word_size = extract_as::<u8>(compressed_dict);
     assert!(word_size as usize == std::mem::size_of::<T>());
 
