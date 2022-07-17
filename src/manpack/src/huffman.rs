@@ -190,7 +190,7 @@ where
         trees.sort_by(|l, r| r.weight.cmp(&l.weight));
 
         // merge two lightest items into one
-        let l = trees.pop().unwrap();
+        let l = trees.pop().unwrap();               // we are safe here - trees.len is at least 2
         let r = trees.pop().unwrap();
 
         let node = Node::<T>::Branch { left: Box::new(l.data), right: Box::new(r.data) };
