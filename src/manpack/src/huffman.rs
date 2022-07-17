@@ -2,7 +2,6 @@
 use bit_vec::BitVec;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
-use std::collections::VecDeque;
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::mem::size_of;
@@ -170,7 +169,7 @@ where
         return Dictionary::<T>::new();
     }
 
-    let mut trees: VecDeque::<Tree<T> > = VecDeque::with_capacity(words.len());
+    let mut trees: Vec::<Tree<T> > = Vec::with_capacity(words.len());
 
     // load all words as trees
     for (word, weight) in words {
@@ -179,7 +178,7 @@ where
             data: Node::<T>::Leaf { value: *word },
         };
 
-        trees.push_back(node);
+        trees.push(node);
     }
 
     log::trace!("Initial, flat, Huffman tree prepared");
@@ -188,23 +187,23 @@ where
     while trees.len() > 1
     {
         // sort by weight
-        trees.make_contiguous().sort_by(|l, r| l.weight.cmp(&r.weight));
+        trees.sort_by(|l, r| r.weight.cmp(&l.weight));
 
-        // merge two heaviest items into one
-        let l = trees.pop_front().unwrap();
-        let r = trees.pop_front().unwrap();
+        // merge two lightest items into one
+        let l = trees.pop().unwrap();
+        let r = trees.pop().unwrap();
 
         let node = Node::<T>::Branch { left: Box::new(l.data), right: Box::new(r.data) };
         let tree = Tree::<T> { weight: l.weight + r.weight, data: node };
 
-        trees.push_back(tree);
+        trees.push(tree);
     }
 
     log::trace!("Huffman tree built");
 
     // build dictionary from tree
     let mut dictionary = Dictionary::new();
-    let tree = trees.pop_front().unwrap();
+    let tree = trees.pop().unwrap();
 
     parse_node(&tree.data, &mut dictionary, BitVec::new());
 
