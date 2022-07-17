@@ -1,7 +1,6 @@
 
 use bit_vec::BitVec;
-use std::collections::BTreeMap;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap, BinaryHeap};
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::mem::size_of;
@@ -70,7 +69,7 @@ impl Serialize for u8 {
 
 pub fn compress<T>(data: &[T]) -> Vec<u8>
 where
-    T: Eq + Hash + Copy + Serialize + Debug
+    T: Hash + Copy + Serialize + Debug + Ord
 {
     let words = calculate_weights(data);
     let dictionary = build_dictionary(&words);
@@ -82,6 +81,8 @@ where
     compressed.append(&mut compressed_dict);
     compressed.append(&mut compressed_data.len().to_bytes());
     compressed.append(&mut compressed_data);
+
+    log::trace!("Compression finished. Total size: {} bits", compressed.len());
 
     return compressed.to_bytes();
 }
@@ -158,10 +159,29 @@ enum Node<T> {
     Branch { left: Box<Node<T>>, right: Box<Node<T>> },
 }
 
+impl<T> Ord for Tree<T> {
+    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
+        self.weight.cmp(&other.weight)
+    }
+}
+
+impl<T> PartialOrd for Tree<T> {
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+        self.weight.partial_cmp(&other.weight)
+    }
+}
+
+impl<T> Eq for Tree<T> { }
+
+impl<T> PartialEq for Tree<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.weight == other.weight
+    }
+}
 
 fn build_dictionary<T>(words: &HashMap<T, usize>) -> Dictionary<T>
 where
-    T: Eq + Hash + Copy
+    T: Hash + Copy + Ord
 {
     log::trace!("Building dictionary for {} words", words.len());
 
@@ -169,7 +189,9 @@ where
         return Dictionary::<T>::new();
     }
 
-    let mut trees: Vec::<Tree<T> > = Vec::with_capacity(words.len());
+    // BinaryHeap is 'heap max' - root is the the maximum item.
+    // here we need the oposite so std::cmp::Reverse is being used
+    let mut trees: BinaryHeap::<std::cmp::Reverse::<Tree::<T>>> = BinaryHeap::with_capacity(words.len());
 
     // load all words as trees
     for (word, weight) in words {
@@ -178,7 +200,7 @@ where
             data: Node::<T>::Leaf { value: *word },
         };
 
-        trees.push(node);
+        trees.push(std::cmp::Reverse(node));
     }
 
     log::trace!("Initial, flat, Huffman tree prepared");
@@ -186,17 +208,14 @@ where
     // build one tree from trees
     while trees.len() > 1
     {
-        // sort by weight
-        trees.sort_by(|l, r| r.weight.cmp(&l.weight));
-
         // merge two lightest items into one
         let l = trees.pop().unwrap();               // we are safe here - trees.len is at least 2
         let r = trees.pop().unwrap();
 
-        let node = Node::<T>::Branch { left: Box::new(l.data), right: Box::new(r.data) };
-        let tree = Tree::<T> { weight: l.weight + r.weight, data: node };
+        let node = Node::<T>::Branch { left: Box::new(l.0.data), right: Box::new(r.0.data) };
+        let tree = Tree::<T> { weight: l.0.weight + r.0.weight, data: node };
 
-        trees.push(tree);
+        trees.push(std::cmp::Reverse(tree));
     }
 
     log::trace!("Huffman tree built");
@@ -205,7 +224,7 @@ where
     let mut dictionary = Dictionary::new();
     let tree = trees.pop().unwrap();
 
-    parse_node(&tree.data, &mut dictionary, BitVec::new());
+    parse_node(&tree.0.data, &mut dictionary, BitVec::new());
 
     log::trace!("Huffman tree converted into dictionary");
     let longest_code = dictionary.iter().reduce(|acc, item| { if acc.1.len() > item.1.len() { acc } else { item } });
