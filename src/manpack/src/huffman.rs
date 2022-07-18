@@ -92,37 +92,42 @@ pub fn decompress<T>(data: &[u8]) -> Vec<T>
 where
     T: Eq + Hash + Copy + Serialize
 {
-    let mut buf = BitVec::from_bytes(data);
+    let buf = BitVec::from_bytes(data);
+    let mut buf_iter = buf.iter();
 
-    let compressed_dict_size = extract_as::<usize>(&mut buf);
-    let mut compressed_dict = extract(&mut buf, compressed_dict_size);
-    let dictionary = decompress_dictionary::<T>(&mut compressed_dict);
+    let compressed_dict_size = extract_as::<usize>(&mut buf_iter);
+    let compressed_dict = extract(&mut buf_iter, compressed_dict_size);
+    let dictionary = decompress_dictionary::<T>(&mut compressed_dict.iter());
 
-    let compressed_data_size = extract_as::<usize>(&mut buf);
-    let mut compressed_data = extract(&mut buf, compressed_data_size);
-    assert!(buf.len() < 8);         // during compression bit stream was filled with zeroes up to multiple of 8. So there should be no more than 7 false bits left
-    let data = decompress_data::<T>(&dictionary, &mut compressed_data);
+    let compressed_data_size = extract_as::<usize>(&mut buf_iter);
+    let compressed_data = extract(&mut buf_iter, compressed_data_size);
+    assert!(buf_iter.len() < 8);        // during compression bit stream was filled with zeroes up to multiple of 8. So there should be no more than 7 false bits left
+    let data = decompress_data::<T>(&dictionary, &mut compressed_data.iter());
 
     return data;
 }
 
 
-fn extract(bit_vec: &mut BitVec, bits: usize) -> BitVec {
-    let mut remainder = bit_vec.split_off(bits);
+fn extract(iter: &mut bit_vec::Iter, bits: usize) -> BitVec {
 
-    // first part of original 'bit_vec' is what we return
-    // 'remainder' is what we left in 'bit_vec'
-    std::mem::swap(&mut remainder, bit_vec);
+    let mut result = BitVec::new();
 
-    return remainder;
+    assert!(iter.len() >= bits);
+
+    for _ in 0..bits {
+        let bit = iter.next().unwrap();
+        result.push(bit);
+    }
+
+    result
 }
 
 
-fn extract_as<T>(bit_vec: &mut BitVec) -> T
+fn extract_as<T>(iter: &mut bit_vec::Iter) -> T
 where
     T: Serialize
 {
-    let value_bits = extract(bit_vec, std::mem::size_of::<T>() * 8);
+    let value_bits = extract(iter, std::mem::size_of::<T>() * 8);
 
     T::from_bytes(&value_bits)
 }
@@ -276,7 +281,7 @@ fn compress_data<T>(dict: &Dictionary<T>, data: &[T]) -> BitVec
 }
 
 
-fn decompress_data<T>(dict: &Dictionary<T>, buf: &mut BitVec) -> Vec<T>
+fn decompress_data<T>(dict: &Dictionary<T>, iter: &mut bit_vec::Iter) -> Vec<T>
 where
     T: Copy
 {
@@ -295,7 +300,7 @@ where
     let mut result: Vec<T> = Vec::new();
     let mut current_code = BitVec::new();
 
-    for bit in buf.iter() {
+    for bit in iter {
         current_code.push(bit);
 
         let word = anti_dictionary.get(&current_code);
@@ -348,7 +353,7 @@ where
 }
 
 
-fn decompress_dictionary<T>(compressed_dict: &mut BitVec) -> Dictionary<T>
+fn decompress_dictionary<T>(compressed_dict_iter: &mut bit_vec::Iter) -> Dictionary<T>
 where
     T: Eq + Hash + Copy + Serialize
 {
@@ -356,8 +361,8 @@ where
 
     let mut dictionary = Dictionary::new();
 
-    let words_count = extract_as::<u32>(compressed_dict);
-    let word_size = extract_as::<u8>(compressed_dict);
+    let words_count = extract_as::<u32>(compressed_dict_iter);
+    let word_size = extract_as::<u8>(compressed_dict_iter);
     assert!(word_size as usize == std::mem::size_of::<T>());
 
     let mut words = Vec::with_capacity(words_count as usize);
@@ -366,7 +371,7 @@ where
 
     // read words
     for _ in 0..words_count {
-        let word = extract_as::<T>(compressed_dict);
+        let word = extract_as::<T>(compressed_dict_iter);
         words.push(word);
     }
 
@@ -374,13 +379,13 @@ where
 
     // read words' codes
     for word in words {
-        let code_len = extract_as::<u8>(compressed_dict);
-        let code = extract(compressed_dict, code_len.into());
+        let code_len = extract_as::<u8>(compressed_dict_iter);
+        let code = extract(compressed_dict_iter, code_len.into());
         dictionary.insert(word, code.clone());
     }
 
     // all data should be consumed
-    assert!(compressed_dict.len() == 0);
+    assert!(compressed_dict_iter.len() == 0);
 
     log::trace!("Directory decompressed");
 
@@ -469,7 +474,7 @@ mod tests {
         ]);
 
         let mut compressed_dict = compress_dictionary(&dictionary);
-        let decompressed_dict = decompress_dictionary(&mut compressed_dict);
+        let decompressed_dict = decompress_dictionary(&mut compressed_dict.iter());
 
         assert_eq!(dictionary, decompressed_dict);
     }
@@ -491,7 +496,7 @@ mod tests {
         let data = vec![1, 1, 6, 5, 4, 3, 2, 6, 5, 4, 3, 2, 1, 1, 5];
 
         let mut compressed_data = compress_data(&dictionary, &data[..]);
-        let decompressed_data = decompress_data(&dictionary, &mut compressed_data);
+        let decompressed_data = decompress_data(&dictionary, &mut compressed_data.iter());
 
         assert_eq!(data, decompressed_data);
     }
