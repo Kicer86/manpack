@@ -260,6 +260,8 @@ fn compress_data<T>(dict: &Dictionary<T>, data: &[T]) -> BitVec
     where
         T: Eq + Hash
 {
+    log::trace!("Compressing data");
+
     let mut output = BitVec::new();
 
     for v in data {
@@ -267,6 +269,8 @@ fn compress_data<T>(dict: &Dictionary<T>, data: &[T]) -> BitVec
 
         output.append(&mut code);
     }
+
+    log::trace!("Data compressed. Size: {} bits", output.len());
 
     return output;
 }
@@ -276,12 +280,16 @@ fn decompress_data<T>(dict: &Dictionary<T>, buf: &mut BitVec) -> Vec<T>
 where
     T: Copy
 {
+    log::trace!("Decompressing data");
+
     // build AntiDictionary
     let mut anti_dictionary = BTreeMap::new();
 
     for (word, code) in dict {
         anti_dictionary.insert(code, word);
     }
+
+    log::trace!("AntiDictionary built");
 
     // extract bit by bit from buf
     let mut result: Vec<T> = Vec::new();
@@ -300,6 +308,8 @@ where
 
     assert!(current_code.is_empty());
 
+    log::trace!("Data decompressed");
+
     return result;
 }
 
@@ -308,6 +318,8 @@ fn compress_dictionary<T>(dict: &Dictionary<T>) -> BitVec
 where
     T: Copy + Serialize
 {
+    log::trace!("Compressing directory");
+
     let mut compressed_dict = BitVec::new();
     let words_count: u32 = dict.len() as u32;
 
@@ -330,6 +342,8 @@ where
         compressed_dict.append(&mut code.clone());
     }
 
+    log::trace!("Directory compressed. Size: {} bits", compressed_dict.len());
+
     return compressed_dict;
 }
 
@@ -338,19 +352,25 @@ fn decompress_dictionary<T>(compressed_dict: &mut BitVec) -> Dictionary<T>
 where
     T: Eq + Hash + Copy + Serialize
 {
+    log::trace!("Decompressing directory");
+
     let mut dictionary = Dictionary::new();
 
     let words_count = extract_as::<u32>(compressed_dict);
     let word_size = extract_as::<u8>(compressed_dict);
     assert!(word_size as usize == std::mem::size_of::<T>());
 
-    let mut words = Vec::new();
+    let mut words = Vec::with_capacity(words_count as usize);
+
+    log::trace!("Expecting {} words", words_count);
 
     // read words
     for _ in 0..words_count {
         let word = extract_as::<T>(compressed_dict);
         words.push(word);
     }
+
+    log::trace!("{} words read", words_count);
 
     // read words' codes
     for word in words {
@@ -361,6 +381,8 @@ where
 
     // all data should be consumed
     assert!(compressed_dict.len() == 0);
+
+    log::trace!("Directory decompressed");
 
     return dictionary;
 }
