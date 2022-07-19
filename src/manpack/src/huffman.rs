@@ -473,7 +473,7 @@ mod tests {
             ( 6, BitVec::from_fn(17, |i| { i % 5 == 0 }) ),
         ]);
 
-        let mut compressed_dict = compress_dictionary(&dictionary);
+        let compressed_dict = compress_dictionary(&dictionary);
         let decompressed_dict = decompress_dictionary(&mut compressed_dict.iter());
 
         assert_eq!(dictionary, decompressed_dict);
@@ -495,7 +495,7 @@ mod tests {
 
         let data = vec![1, 1, 6, 5, 4, 3, 2, 6, 5, 4, 3, 2, 1, 1, 5];
 
-        let mut compressed_data = compress_data(&dictionary, &data[..]);
+        let compressed_data = compress_data(&dictionary, &data[..]);
         let decompressed_data = decompress_data(&dictionary, &mut compressed_data.iter());
 
         assert_eq!(data, decompressed_data);
