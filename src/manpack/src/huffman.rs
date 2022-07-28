@@ -1,6 +1,6 @@
 
 use bit_vec::BitVec;
-use std::collections::{BTreeMap, HashMap, BinaryHeap};
+use std::collections::{HashMap, BinaryHeap};
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::mem::size_of;
@@ -184,6 +184,77 @@ impl<T> PartialEq for Tree<T> {
     }
 }
 
+struct SearchTree<T> {
+    node: Box<SearchNode<T>>,
+}
+
+enum SearchNode<T> {
+    Empty,
+    Leaf { value: T, },
+    Node { left: Box<SearchNode::<T>>, right: Box<SearchNode::<T>>, },
+}
+
+impl<T> SearchTree<T>
+where
+    T: Copy
+{
+
+    fn new() -> SearchTree<T> {
+        SearchTree { node: Box::new(SearchNode::<T>::Empty), }
+    }
+
+    fn insert(&mut self, bits: &BitVec, value: T) {
+        let mut current_node: *mut Box<SearchNode<T>> = &mut self.node;
+
+        let mut i = 0;
+        for bit in bits {
+
+            i += 1;
+            let is_last = i == bits.len();
+            let mut current_node_type = unsafe { &mut **current_node };
+
+            match current_node_type {
+                SearchNode::Empty => {
+                    let mut left = Box::new(SearchNode::<T>::Empty);
+                    let mut right = Box::new(SearchNode::<T>::Empty);
+
+                    if is_last {
+                        let leaf = Box::new(SearchNode::<T>::Leaf{value: value});
+                        if bit {
+                            right = leaf;
+                        } else {
+                            left = leaf;
+                        }
+                    }
+
+                    unsafe {
+                        *current_node = Box::new(SearchNode::<T>::Node { left: left, right: right, });
+                    }
+
+                    current_node_type = unsafe { &mut **current_node };
+                    current_node = match current_node_type {
+                        SearchNode::Node{left, right} => {
+                            if bit {
+                                &mut *right
+                            } else {
+                                &mut *left
+                            }
+                        },
+                        _ => { panic!("Node was expected") }
+                    }
+                },
+                SearchNode::Leaf{value: _} => {
+                    panic!("Cannot jump over Leaf");
+                },
+                SearchNode::Node{left, right} => {
+                    current_node = if bit { &mut *right } else { &mut *left }
+                },
+            }
+        }
+    }
+
+}
+
 fn build_dictionary<T>(words: &HashMap<T, usize>) -> Dictionary<T>
 where
     T: Hash + Copy + Ord
@@ -288,10 +359,12 @@ where
     log::trace!("Decompressing data");
 
     // build AntiDictionary
-    let mut anti_dictionary = BTreeMap::new();
+    let mut anti_dictionary = HashMap::new();
+    let mut search_tree = SearchTree::<T>::new();
 
     for (word, code) in dict {
         anti_dictionary.insert(code, word);
+        search_tree.insert(code, *word);
     }
 
     log::trace!("AntiDictionary built");
@@ -499,5 +572,33 @@ mod tests {
         let decompressed_data = decompress_data(&dictionary, &mut compressed_data.iter());
 
         assert_eq!(data, decompressed_data);
+    }
+
+
+    #[test]
+    fn test_search_tree_() {
+
+        let words: HashMap<u8, usize> =
+            [
+             (0, 30),
+             (1, 100),
+             (2, 20),
+             (3, 10),
+             (4, 10),
+             (5, 50),
+             (6, 25),
+             (7, 50),
+             (8, 25),
+             (9, 10),
+            ].iter().cloned().collect();
+
+        let dictionary = build_dictionary(&words);
+        let mut search_tree = SearchTree::new();
+
+        for (word, code) in dictionary {
+            search_tree.insert(&code, word);
+        }
+
+        //assert_eq!(data, decompressed_data);
     }
 }
