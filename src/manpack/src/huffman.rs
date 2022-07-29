@@ -184,6 +184,7 @@ impl<T> PartialEq for Tree<T> {
     }
 }
 
+
 struct SearchTree<T> {
     node: Box<SearchNode<T>>,
 }
@@ -247,9 +248,30 @@ where
                     panic!("Cannot jump over Leaf");
                 },
                 SearchNode::Node{left, right} => {
+                    if is_last {
+                        let leaf = Box::new(SearchNode::<T>::Leaf{value: value});
+                        if bit {
+                            *right = leaf;
+                        } else {
+                            *left = leaf;
+                        }
+                    }
+
                     current_node = if bit { &mut *right } else { &mut *left }
                 },
             }
+        }
+    }
+
+    fn is_valid(&self) -> bool {
+        Self::is_node_valid(&*self.node)
+    }
+
+    fn is_node_valid(node: &SearchNode<T>) -> bool {
+        match &node {
+            SearchNode::Empty => false,
+            SearchNode::Leaf {value: _} => true,
+            SearchNode::Node { left, right } => Self::is_node_valid(left) && Self::is_node_valid(right),
         }
     }
 
@@ -366,6 +388,8 @@ where
         anti_dictionary.insert(code, word);
         search_tree.insert(code, *word);
     }
+
+    debug_assert!(search_tree.is_valid());
 
     log::trace!("AntiDictionary built");
 
@@ -555,19 +579,9 @@ mod tests {
     #[test]
     fn test_data_compression_decompression() {
 
-        let dictionary = Dictionary::from([
-            ( 1, BitVec::from_bytes(&[0b10000000]) ),
-            ( 2, BitVec::from_bytes(&[0b01000000]) ),
-            ( 3, BitVec::from_bytes(&[0b00100000]) ),
-            ( 4, BitVec::from_bytes(&[0b00010000]) ),
-            ( 5, BitVec::from_bytes(&[0b00001000]) ),
-            ( 6, BitVec::from_bytes(&[0b00000100]) ),
-            ( 7, BitVec::from_bytes(&[0b00000010]) ),
-            ( 8, BitVec::from_bytes(&[0b00000001]) ),
-        ]);
-
         let data = vec![1, 1, 6, 5, 4, 3, 2, 6, 5, 4, 3, 2, 1, 1, 5];
-
+        let words = calculate_weights(&data);
+        let dictionary = build_dictionary(&words);
         let compressed_data = compress_data(&dictionary, &data[..]);
         let decompressed_data = decompress_data(&dictionary, &mut compressed_data.iter());
 
@@ -599,6 +613,6 @@ mod tests {
             search_tree.insert(&code, word);
         }
 
-        //assert_eq!(data, decompressed_data);
+        assert!(search_tree.is_valid());
     }
 }
