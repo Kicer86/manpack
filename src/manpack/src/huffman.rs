@@ -263,15 +263,47 @@ where
         }
     }
 
+    fn value(&self, bits: &BitVec) -> Option<&T> {
+
+        let mut result: Option<&T> = None;
+        let mut current_parent = &self.node;
+
+        for bit in bits {
+            let child = Self::node_for(current_parent, bit);
+
+            match &**child {
+                SearchNode::Leaf{value} => {
+                    result = Some(value);
+                    break;
+                },
+                SearchNode::Empty => panic!("SearchTree is incomplete"),
+                _ => (),
+            }
+
+            current_parent = child;
+        }
+
+        return result;
+    }
+
     fn is_valid(&self) -> bool {
         Self::is_node_valid(&*self.node)
     }
+
+    // private
 
     fn is_node_valid(node: &SearchNode<T>) -> bool {
         match &node {
             SearchNode::Empty => false,
             SearchNode::Leaf {value: _} => true,
             SearchNode::Node { left, right } => Self::is_node_valid(left) && Self::is_node_valid(right),
+        }
+    }
+
+    fn node_for(parent_node: &Box<SearchNode::<T>>, branch: bool) -> &Box<SearchNode::<T>> {
+        match &**parent_node {
+            SearchNode::Node {left, right} => if branch { &right } else { &left },
+            _ => panic!("We can only dive into Node type"),
         }
     }
 
@@ -381,11 +413,9 @@ where
     log::trace!("Decompressing data");
 
     // build AntiDictionary
-    let mut anti_dictionary = HashMap::new();
     let mut search_tree = SearchTree::<T>::new();
 
     for (word, code) in dict {
-        anti_dictionary.insert(code, word);
         search_tree.insert(code, *word);
     }
 
@@ -400,10 +430,10 @@ where
     for bit in iter {
         current_code.push(bit);
 
-        let word = anti_dictionary.get(&current_code);
+        let word = search_tree.value(&current_code);
 
         if word.is_some() {
-            result.push(**word.unwrap());
+            result.push(*word.unwrap());
             current_code = BitVec::new();
         }
     }
