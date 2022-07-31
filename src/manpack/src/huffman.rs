@@ -302,7 +302,14 @@ where
 
     fn node_for(parent_node: &Box<SearchNode::<T>>, branch: bool) -> &Box<SearchNode::<T>> {
         match &**parent_node {
-            SearchNode::Node {left, right} => if branch { &right } else { &left },
+            SearchNode::Node {left, right} => if branch { right } else { left },
+            _ => panic!("We can only dive into Node type"),
+        }
+    }
+
+    fn mut_node_for(parent_node: &mut Box<SearchNode::<T>>, branch: bool) -> &mut Box<SearchNode<T>> {
+        match &mut **parent_node {
+            SearchNode::Node {left, right} => if branch { right } else { left },
             _ => panic!("We can only dive into Node type"),
         }
     }
