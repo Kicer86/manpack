@@ -205,61 +205,42 @@ where
     }
 
     fn insert(&mut self, bits: &BitVec, value: T) {
-        let mut current_node: *mut Box<SearchNode<T>> = &mut self.node;
+        let mut current_node = &mut self.node;
 
         let mut i = 0;
         for bit in bits {
 
             i += 1;
             let is_last = i == bits.len();
-            let mut current_node_type = unsafe { &mut **current_node };
 
-            match current_node_type {
+            match **current_node {
                 SearchNode::Empty => {
-                    let mut left = Box::new(SearchNode::<T>::Empty);
-                    let mut right = Box::new(SearchNode::<T>::Empty);
+                    *current_node = if is_last {
+                        if bit {
+                            Box::new(SearchNode::<T>::Node { left: Box::new(SearchNode::<T>::Empty), right: Box::new(SearchNode::<T>::Leaf { value: value, }), })
+                        } else {
+                            Box::new(SearchNode::<T>::Node { left: Box::new(SearchNode::<T>::Leaf { value: value, }), right: Box::new(SearchNode::<T>::Empty), })
+                        }
+                    } else {
+                        Box::new(SearchNode::<T>::Node { left: Box::new(SearchNode::<T>::Empty), right: Box::new(SearchNode::<T>::Empty), })
+                    }
+                },
+                SearchNode::Node{ref mut left, ref mut right} => {
 
                     if is_last {
-                        let leaf = Box::new(SearchNode::<T>::Leaf{value: value});
+                        let value_boxed = Box::new(SearchNode::<T>::Leaf { value: value, });
+
                         if bit {
-                            right = leaf;
+                            *right = value_boxed;
                         } else {
-                            left = leaf;
+                           *left = value_boxed;
                         }
                     }
-
-                    unsafe {
-                        *current_node = Box::new(SearchNode::<T>::Node { left: left, right: right, });
-                    }
-
-                    current_node_type = unsafe { &mut **current_node };
-                    current_node = match current_node_type {
-                        SearchNode::Node{left, right} => {
-                            if bit {
-                                &mut *right
-                            } else {
-                                &mut *left
-                            }
-                        },
-                        _ => { panic!("Node was expected") }
-                    }
-                },
-                SearchNode::Leaf{value: _} => {
-                    panic!("Cannot jump over Leaf");
-                },
-                SearchNode::Node{left, right} => {
-                    if is_last {
-                        let leaf = Box::new(SearchNode::<T>::Leaf{value: value});
-                        if bit {
-                            *right = leaf;
-                        } else {
-                            *left = leaf;
-                        }
-                    }
-
-                    current_node = if bit { &mut *right } else { &mut *left }
-                },
+                }
+                _ => (),
             }
+
+            current_node = Self::mut_node_for(current_node, bit);
         }
     }
 
@@ -313,7 +294,6 @@ where
             _ => panic!("We can only dive into Node type"),
         }
     }
-
 }
 
 fn build_dictionary<T>(words: &HashMap<T, usize>) -> Dictionary<T>
